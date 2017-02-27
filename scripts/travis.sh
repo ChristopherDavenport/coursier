@@ -24,9 +24,17 @@ launchTestRepo() {
   ./scripts/launch-test-repo.sh "$@"
 }
 
+setupCsbtLauncher() {
+  sbt ++2.12.1 coreJVM/publishLocal cache/publishLocal sbt-launcher/publishLocal
+  scripts/generate-sbt-launcher.sh
+  rm -rf project
+  rm -rf ~/.sbt ~/.ivy2/cache
+  mv csbt bin/
+}
+
 integrationTestsRequirements() {
   # Required for ~/.ivy2/local repo tests
-  sbt ++2.11.11 coreJVM/publishLocal http-server/publishLocal
+  csbt ++2.11.11 coreJVM/publishLocal http-server/publishLocal
 
   # Required for HTTP authentication tests
   launchTestRepo --port 8080 --list-pages
@@ -75,45 +83,45 @@ is212() {
 }
 
 runSbtCoursierTests() {
-  sbt ++$SCALA_VERSION coreJVM/publishLocal cache/publishLocal "sbt-coursier/scripted sbt-coursier/*"
+  csbt ++$SCALA_VERSION coreJVM/publishLocal cache/publishLocal "sbt-coursier/scripted sbt-coursier/*"
   if [ "$SCALA_VERSION" = "2.10" ]; then
-    sbt ++$SCALA_VERSION "sbt-coursier/scripted sbt-coursier-0.13/*"
+    csbt ++$SCALA_VERSION "sbt-coursier/scripted sbt-coursier-0.13/*"
   fi
 }
 
 runSbtShadingTests() {
-  sbt ++$SCALA_VERSION coreJVM/publishLocal cache/publishLocal sbt-coursier/publishLocal "sbt-shading/scripted sbt-shading/*"
+  csbt ++$SCALA_VERSION coreJVM/publishLocal cache/publishLocal sbt-coursier/publishLocal "sbt-shading/scripted sbt-shading/*"
   if [ "$SCALA_VERSION" = "2.10" ]; then
-    sbt ++$SCALA_VERSION "sbt-shading/scripted sbt-shading-0.13/*"
+    csbt ++$SCALA_VERSION "sbt-shading/scripted sbt-shading-0.13/*"
   fi
 }
 
 jsCompile() {
-  sbt ++$SCALA_VERSION js/compile js/test:compile coreJS/fastOptJS fetch-js/fastOptJS testsJS/test:fastOptJS js/test:fastOptJS
+  csbt ++$SCALA_VERSION js/compile js/test:compile coreJS/fastOptJS fetch-js/fastOptJS testsJS/test:fastOptJS js/test:fastOptJS
 }
 
 jvmCompile() {
-  sbt ++$SCALA_VERSION jvm/compile jvm/test:compile
+  csbt ++$SCALA_VERSION jvm/compile jvm/test:compile
 }
 
 runJsTests() {
-  sbt ++$SCALA_VERSION js/test
+  csbt ++$SCALA_VERSION js/test
 }
 
 runJvmTests() {
-  sbt ++$SCALA_VERSION jvm/test jvm/it:test
+  csbt ++$SCALA_VERSION jvm/test jvm/it:test
 }
 
 validateReadme() {
-  sbt ++${SCALA_VERSION} tut
+  csbt ++${SCALA_VERSION} tut
 }
 
 checkBinaryCompatibility() {
-  sbt ++${SCALA_VERSION} coreJVM/mimaReportBinaryIssues cache/mimaReportBinaryIssues
+  csbt ++${SCALA_VERSION} coreJVM/mimaReportBinaryIssues cache/mimaReportBinaryIssues
 }
 
 testLauncherJava6() {
-  sbt ++${SCALA_VERSION} cli/pack
+  csbt ++${SCALA_VERSION} cli/pack
   docker run -it --rm \
     -v $(pwd)/cli/target/pack:/opt/coursier \
     -e CI=true \
@@ -128,7 +136,7 @@ testLauncherJava6() {
 }
 
 testSbtCoursierJava6() {
-  sbt ++${SCALA_VERSION} coreJVM/publishLocal cache/publishLocal sbt-coursier/publishLocal
+  csbt ++${SCALA_VERSION} coreJVM/publishLocal cache/publishLocal sbt-coursier/publishLocal
 
   git clone https://github.com/alexarchambault/scalacheck-shapeless.git
   cd scalacheck-shapeless
@@ -173,12 +181,12 @@ addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-SNAPSHOT")
 }
 
 publish() {
-  sbt ++${SCALA_VERSION} publish
+  csbt ++${SCALA_VERSION} publish
 }
 
 testBootstrap() {
   if is211; then
-    sbt ++${SCALA_VERSION} echo/publishLocal cli/pack
+    csbt ++${SCALA_VERSION} echo/publishLocal cli/pack
     cli/target/pack/bin/coursier bootstrap -o cs-echo io.get-coursier:echo_2.11:1.0.0-SNAPSHOT
     if [ "$(./cs-echo foo)" != foo ]; then
       echo "Error: unexpected output from bootstrapped echo command." 1>&2
@@ -194,6 +202,8 @@ setupCustomJarjar
 
 setupCoursierBinDir
 downloadInstallSbtExtras
+
+setupCsbtLauncher
 
 if isScalaJs; then
   jsCompile
